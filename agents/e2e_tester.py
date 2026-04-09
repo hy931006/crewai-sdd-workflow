@@ -1,11 +1,10 @@
 """SDD Workflow Agents - 端到端测试 Agent"""
-from crewai import Agent
-from langchain_openai import ChatOpenAI
+from crewai import Agent, LLM
 
 class E2ETester:
     """端到端测试 Agent"""
 
-    def __init__(self, llm: ChatOpenAI):
+    def __init__(self, llm: LLM):
         self.llm = llm
         self.agent = Agent(
             role="端到端测试工程师",

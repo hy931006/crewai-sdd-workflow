@@ -1,13 +1,12 @@
 """代码检视 Task"""
 from crewai import Task
-from agents import CodeReviewer
 
 
-def create_review_task(reviewer: CodeReviewer, development_output: str) -> Task:
+def create_review_task(agent, development_output: str) -> Task:
     """创建代码检视任务
 
     Args:
-        reviewer: 代码检视员 Agent 实例
+        agent: CrewAI Agent 实例
         development_output: 开发产出结果
 
     Returns:
@@ -25,6 +24,6 @@ def create_review_task(reviewer: CodeReviewer, development_output: str) -> Task:
         4. 设计模式应用
 
         输出：问题清单和改进建议""",
-        agent=reviewer.agent,
+        agent=agent,
         expected_output="代码检视报告，列出发现的问题和优先级"
     )

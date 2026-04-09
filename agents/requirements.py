@@ -1,11 +1,10 @@
 """SDD Workflow Agents - 需求分析 Agent"""
-from crewai import Agent
-from langchain_openai import ChatOpenAI
+from crewai import Agent, LLM
 
 class RequirementsAnalyst:
     """需求分析 Agent"""
 
-    def __init__(self, llm: ChatOpenAI):
+    def __init__(self, llm: LLM):
         self.llm = llm
         self.agent = Agent(
             role="需求分析师",

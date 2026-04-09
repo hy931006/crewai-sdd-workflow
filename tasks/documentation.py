@@ -1,13 +1,12 @@
 """文档编写 Task"""
 from crewai import Task
-from agents import TechnicalWriter
 
 
-def create_documentation_task(writer: TechnicalWriter, all_outputs: str, project_name: str) -> Task:
+def create_documentation_task(agent, all_outputs: str, project_name: str) -> Task:
     """创建文档编写任务
 
     Args:
-        writer: 文档工程师 Agent 实例
+        agent: CrewAI Agent 实例
         all_outputs: 所有阶段产出汇总
         project_name: 项目名称
 
@@ -27,6 +26,6 @@ def create_documentation_task(writer: TechnicalWriter, all_outputs: str, project
         4. CHANGELOG.md - 变更记录
 
         输出：完整的项目文档""",
-        agent=writer.agent,
+        agent=agent,
         expected_output="完整的项目文档集：README、DESIGN、API 等"
     )

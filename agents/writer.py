@@ -1,11 +1,10 @@
 """SDD Workflow Agents - 技术文档 Agent"""
-from crewai import Agent
-from langchain_openai import ChatOpenAI
+from crewai import Agent, LLM
 
 class TechnicalWriter:
     """技术文档 Agent"""
 
-    def __init__(self, llm: ChatOpenAI):
+    def __init__(self, llm: LLM):
         self.llm = llm
         self.agent = Agent(
             role="技术文档工程师",

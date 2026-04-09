@@ -1,13 +1,12 @@
 """可行性研究 Task"""
 from crewai import Task
-from agents import FeasibilityExpert
 
 
-def create_feasibility_task(expert: FeasibilityExpert, requirements_output: str) -> Task:
+def create_feasibility_task(agent, requirements_output: str) -> Task:
     """创建可行性研究任务
 
     Args:
-        expert: 可行性专家 Agent 实例
+        agent: CrewAI Agent 实例
         requirements_output: 需求分析输出结果
 
     Returns:
@@ -24,6 +23,6 @@ def create_feasibility_task(expert: FeasibilityExpert, requirements_output: str)
         3. 时间可行性：工期是否可控？
 
         输出三维度评分（1-10 分）和综合建议""",
-        agent=expert.agent,
+        agent=agent,
         expected_output="可行性报告，包含技术、成本、时间三个维度的评分和建议"
     )

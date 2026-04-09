@@ -1,13 +1,12 @@
 """单元测试 Task"""
 from crewai import Task
-from agents import QAEngineer
 
 
-def create_unit_test_task(qa: QAEngineer, development_output: str) -> Task:
+def create_unit_test_task(agent, development_output: str) -> Task:
     """创建单元测试任务
 
     Args:
-        qa: 测试工程师 Agent 实例
+        agent: CrewAI Agent 实例
         development_output: 开发产出结果
 
     Returns:
@@ -25,6 +24,6 @@ def create_unit_test_task(qa: QAEngineer, development_output: str) -> Task:
         4. 包含测试数据和预期结果
 
         输出：test_*.py 测试文件""",
-        agent=qa.agent,
+        agent=agent,
         expected_output="完整的单元测试文件，覆盖核心功能"
     )

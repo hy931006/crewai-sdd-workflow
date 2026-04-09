@@ -1,11 +1,10 @@
 """SDD Workflow Agents - 代码检视 Agent"""
-from crewai import Agent
-from langchain_openai import ChatOpenAI
+from crewai import Agent, LLM
 
 class CodeReviewer:
     """代码检视 Agent"""
 
-    def __init__(self, llm: ChatOpenAI):
+    def __init__(self, llm: LLM):
         self.llm = llm
         self.agent = Agent(
             role="代码检视员",

@@ -1,11 +1,10 @@
 """SDD Workflow Agents - 项目计划 Agent"""
-from crewai import Agent
-from langchain_openai import ChatOpenAI
+from crewai import Agent, LLM
 
 class ProjectPlanner:
     """项目计划 Agent"""
 
-    def __init__(self, llm: ChatOpenAI):
+    def __init__(self, llm: LLM):
         self.llm = llm
         self.agent = Agent(
             role="项目计划师",

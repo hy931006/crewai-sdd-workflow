@@ -1,13 +1,12 @@
 """端到端测试 Task"""
 from crewai import Task
-from agents import E2ETester
 
 
-def create_e2e_test_task(tester: E2ETester, review_output: str) -> Task:
+def create_e2e_test_task(agent, review_output: str) -> Task:
     """创建端到端测试任务
 
     Args:
-        tester: 端到端测试师 Agent 实例
+        agent: CrewAI Agent 实例
         review_output: 代码检视输出结果
 
     Returns:
@@ -24,6 +23,6 @@ def create_e2e_test_task(tester: E2ETester, review_output: str) -> Task:
         3. 验证各模块集成正确性
 
         输出：E2E 测试场景和结果报告""",
-        agent=tester.agent,
+        agent=agent,
         expected_output="E2E 测试报告，包含测试场景和通过/失败状态"
     )

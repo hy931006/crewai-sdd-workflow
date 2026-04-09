@@ -1,13 +1,12 @@
 """代码实现 Task"""
 from crewai import Task
-from agents import SeniorDeveloper
 
 
-def create_development_task(developer: SeniorDeveloper, planning_output: str, project_name: str) -> Task:
+def create_development_task(agent, planning_output: str, project_name: str) -> Task:
     """创建代码实现任务
 
     Args:
-        developer: 高级开发工程师 Agent 实例
+        agent: CrewAI Agent 实例
         planning_output: 项目计划输出结果
         project_name: 项目名称
 
@@ -27,6 +26,6 @@ def create_development_task(developer: SeniorDeveloper, planning_output: str, pr
         4. 创建项目目录和必要文件
 
         输出：创建完整的项目代码文件""",
-        agent=developer.agent,
+        agent=agent,
         expected_output="完整的项目代码文件，包含所有必要模块"
     )

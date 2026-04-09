@@ -8,10 +8,9 @@ SDD Workflow - 多 Agent 协同软件开发生命周期
     workflow = SDDWorkflow()
     results = workflow.run("实现一个博客系统")
 """
-from crewai import Crew, Process
-from langchain_openai import ChatOpenAI
+from crewai import Crew, Process, LLM
 
-from config import LLM_MODEL, VERBOSE, OUTPUT_DIR
+from config import LLM_MODEL, LLM_BASE_URL, DEEPSEEK_API_KEY, VERBOSE, OUTPUT_DIR
 from agents import (
     RequirementsAnalyst, FeasibilityExpert, ProjectPlanner,
     SeniorDeveloper, QAEngineer, CodeReviewer, E2ETester, TechnicalWriter
@@ -35,15 +34,23 @@ class SDDWorkflow:
         results = workflow.run("实现一个博客系统")
     """
 
-    def __init__(self, model: str = None):
+    def __init__(self, model: str = None, base_url: str = None, api_key: str = None):
         """
         初始化工作流程
 
         Args:
             model: 使用的 LLM 模型，默认从 config 读取
+            base_url: API 基础 URL，默认从 config 读取
+            api_key: API Key，默认从 config 读取
         """
         self.model = model or LLM_MODEL
-        self.llm = ChatOpenAI(model=self.model)
+        self.base_url = base_url or LLM_BASE_URL
+        self.api_key = api_key or DEEPSEEK_API_KEY
+        self.llm = LLM(
+            model=self.model,
+            base_url=self.base_url,
+            api_key=self.api_key
+        )
         self.output_dir = None
 
     def run(self, requirement: str, output_dir: str = None) -> dict:

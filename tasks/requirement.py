@@ -1,13 +1,12 @@
 """需求分析 Task"""
 from crewai import Task
-from agents import RequirementsAnalyst
 
 
-def create_requirement_task(analyst: RequirementsAnalyst, requirement: str) -> Task:
+def create_requirement_task(agent, requirement: str) -> Task:
     """创建需求分析任务
 
     Args:
-        analyst: 需求分析师 Agent 实例
+        agent: CrewAI Agent 实例
         requirement: 用户需求描述
 
     Returns:
@@ -29,6 +28,6 @@ def create_requirement_task(analyst: RequirementsAnalyst, requirement: str) -> T
         - 数据字典
         - API 接口设计
         - 风险评估""",
-        agent=analyst.agent,
+        agent=agent,
         expected_output="结构化需求规格说明书，包含功能清单、数据模型、接口定义"
     )
