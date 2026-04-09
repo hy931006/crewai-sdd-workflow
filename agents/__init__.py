@@ -1,19 +1,20 @@
-"""SDD Workflow Agents - 需求分析 Agent"""
-from crewai import Agent
-from langchain_openai import ChatOpenAI
+"""SDD Workflow Agents"""
+from .requirements import RequirementsAnalyst
+from .feasibility import FeasibilityExpert
+from .planner import ProjectPlanner
+from .developer import SeniorDeveloper
+from .qa import QAEngineer
+from .reviewer import CodeReviewer
+from .e2e_tester import E2ETester
+from .writer import TechnicalWriter
 
-class RequirementsAnalyst:
-    """需求分析 Agent"""
-    
-    def __init__(self, llm=None):
-        self.llm = llm or ChatOpenAI(model="gpt-4o")
-    
-    def create_agent(self):
-        return Agent(
-            role="需求分析师",
-            goal="深入分析用户需求，输出结构化的需求文档",
-            backstory="你是一位资深需求分析师，擅长将模糊的需求转化为清晰的功能描述。",
-            verbose=True,
-            allow_delegation=False,
-            llm=self.llm
-        )
+__all__ = [
+    'RequirementsAnalyst',
+    'FeasibilityExpert',
+    'ProjectPlanner',
+    'SeniorDeveloper',
+    'QAEngineer',
+    'CodeReviewer',
+    'E2ETester',
+    'TechnicalWriter',
+]

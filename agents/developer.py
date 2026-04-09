@@ -1,19 +1,18 @@
-"""SDD Workflow Agents - 开发者 Agent"""
+"""SDD Workflow Agents - 开发工程师 Agent"""
 from crewai import Agent
 from langchain_openai import ChatOpenAI
 
 class SeniorDeveloper:
-    """高级开发工程师 Agent"""
-    
-    def __init__(self, llm=None):
-        self.llm = llm or ChatOpenAI(model="gpt-4o")
-    
-    def create_agent(self):
-        return Agent(
+    """开发工程师 Agent"""
+
+    def __init__(self, llm: ChatOpenAI):
+        self.llm = llm
+        self.agent = Agent(
             role="高级开发工程师",
-            goal="根据设计文档高质量实现代码",
-            backstory="你是一位经验丰富的 Python 开发工程师，精通游戏开发和面向对象设计。",
+            goal="编写高质量、可维护的生产级代码",
+            backstory="""你是一位全栈开发工程师，精通 Python/JavaScript/Go 等语言。
+你编写的代码遵循最佳实践，注重性能和安全性。""",
             verbose=True,
             allow_delegation=False,
-            llm=self.llm
+            llm=llm
         )
