@@ -1,0 +1,7 @@
+# CrewAI SDD Workflow - 依赖清单
+crewai>=0.80
+crewai-tools>=0.20
+langchain-openai>=0.3
+pygame>=2.5
+pytest>=8.0
+pytest-cov>=4.1
