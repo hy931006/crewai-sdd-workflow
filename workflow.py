@@ -1,355 +1,457 @@
 """
 SDD Workflow - 多 Agent 协同软件开发生命周期
-基于 CrewAI 的自动化软件开发流程
+基于 CrewAI 的通用自动化软件开发框架
+
+使用方法:
+    from workflow import SDDWorkflow
+    
+    workflow = SDDWorkflow()
+    results = workflow.run("实现一个博客系统")
 """
 import os
+from crewai import Agent, Task, Crew, Process
+from langchain_openai import ChatOpenAI
 
-PROJECT_NAME = "SnakeGame"
+# ============== Agent 工厂函数 ==============
+
+def create_requirements_analyst(llm):
+    """创建需求分析 Agent"""
+    return Agent(
+        role="需求分析师",
+        goal="深入分析用户需求，输出结构化、无歧义的需求规格说明书",
+        backstory="""你是一位资深需求分析师，在软件行业有10年经验。
+        你擅长将模糊的业务需求转化为清晰的技术规格，
+        能够识别潜在风险并提出建设性建议。""",
+        verbose=True,
+        allow_delegation=False,
+        llm=llm
+    )
+
+def create_feasibility_expert(llm):
+    """创建可行性研究 Agent"""
+    return Agent(
+        role="可行性研究专家",
+        goal="从技术、成本、时间三个维度评估项目可行性",
+        backstory="""你是一位技术架构师，精通各种技术栈。
+        你能够快速评估技术方案的可行性和风险，
+        给出切实可行的替代方案。""",
+        verbose=True,
+        allow_delegation=False,
+        llm=llm
+    )
+
+def create_project_planner(llm):
+    """创建项目计划 Agent"""
+    return Agent(
+        role="项目计划师",
+        goal="制定详细、可执行的项目计划和任务拆解",
+        backstory="""你是一位经验丰富的项目经理（PMP认证）。
+        你擅长将复杂项目拆解为可管理的小任务，
+        准确评估工期和资源需求。""",
+        verbose=True,
+        allow_delegation=False,
+        llm=llm
+    )
+
+def create_developer(llm):
+    """创建开发者 Agent"""
+    return Agent(
+        role="高级开发工程师",
+        goal="编写高质量、可维护的生产级代码",
+        backstory="""你是一位全栈开发工程师，精通Python/JavaScript/Go等语言。
+        你编写的代码遵循最佳实践，注重性能和安全性。""",
+        verbose=True,
+        allow_delegation=False,
+        llm=llm
+    )
+
+def create_qa_engineer(llm):
+    """创建测试工程师 Agent"""
+    return Agent(
+        role="测试工程师",
+        goal="设计并编写全面的测试用例，确保代码质量",
+        backstory="""你是一位资深QA工程师，精通测试金字塔策略。
+        你编写的测试覆盖边界条件和异常场景。""",
+        verbose=True,
+        allow_delegation=False,
+        llm=llm
+    )
+
+def create_code_reviewer(llm):
+    """创建代码检视 Agent"""
+    return Agent(
+        role="代码检视员",
+        goal="发现代码缺陷、安全漏洞和代码异味，提出改进建议",
+        backstory="""你是一位代码审计专家，对代码质量有极高要求。
+        你熟悉各种设计模式和重构技巧。""",
+        verbose=True,
+        allow_delegation=False,
+        llm=llm
+    )
+
+def create_e2e_tester(llm):
+    """创建端到端测试 Agent"""
+    return Agent(
+        role="端到端测试工程师",
+        goal="设计和执行端到端测试场景，验证系统完整性",
+        backstory="""你是一位E2E测试专家，熟悉用户旅程测试。
+        你能够从用户角度设计测试场景。""",
+        verbose=True,
+        allow_delegation=False,
+        llm=llm
+    )
+
+def create_technical_writer(llm):
+    """创建技术文档 Agent"""
+    return Agent(
+        role="技术文档工程师",
+        goal="编写清晰、完整的项目文档和技术规格说明",
+        backstory="""你是一位专业的技术写作者。
+        你的文档简洁明了，易于理解和维护。""",
+        verbose=True,
+        allow_delegation=False,
+        llm=llm
+    )
+
+
+# ============== Task 工厂函数 ==============
+
+def create_requirement_task(agent, requirement):
+    """需求分析任务"""
+    return Task(
+        description=f"""分析以下需求，输出结构化需求规格说明书：
+        
+        需求：{requirement}
+        
+        要求：
+        1. 识别核心功能和边界条件
+        2. 定义数据模型和接口
+        3. 列出非功能性需求（性能、安全等）
+        4. 识别潜在风险点
+        
+        输出格式：
+        - 功能需求清单（带优先级）
+        - 数据字典
+        - API 接口设计
+        - 风险评估""",
+        agent=agent,
+        expected_output="结构化需求规格说明书，包含功能清单、数据模型、接口定义"
+    )
+
+def create_feasibility_task(agent, requirements_output):
+    """可行性研究任务"""
+    return Task(
+        description=f"""基于以下需求，进行可行性研究：
+        
+        需求分析结果：{requirements_output}
+        
+        研究维度：
+        1. 技术可行性：现有技术栈能否支持？
+        2. 成本效益：投入产出比是否合理？
+        3. 时间可行性：工期是否可控？
+        
+        输出三维度评分（1-10分）和综合建议""",
+        agent=agent,
+        expected_output="可行性报告，包含技术、成本、时间三个维度的评分和建议"
+    )
+
+def create_planning_task(agent, feasibility_output):
+    """计划拆解任务"""
+    return Task(
+        description=f"""基于可行性研究结果，制定详细的项目计划：
+        
+        可行性报告：{feasibility_output}
+        
+        要求：
+        1. WBS 工作分解结构
+        2. 每个任务的工期估算
+        3. 任务依赖关系
+        4. 关键路径识别
+        
+        输出格式：任务列表，包含ID、名称、工期、依赖""",
+        agent=agent,
+        expected_output="WBS 任务分解表，包含任务ID、名称、工期和依赖关系"
+    )
+
+def create_development_task(agent, planning_output, project_name):
+    """代码实现任务"""
+    return Task(
+        description=f"""基于项目计划，实现代码：
+        
+        项目计划：{planning_output}
+        项目名称：{project_name}
+        
+        要求：
+        1. 遵循项目计划的任务顺序
+        2. 代码结构清晰，注释完善
+        3. 包含基础的错误处理
+        4. 创建项目目录和必要文件
+        
+        输出：创建完整的项目代码文件""",
+        agent=agent,
+        expected_output="完整的项目代码文件，包含所有必要模块"
+    )
+
+def create_unit_test_task(agent, development_output):
+    """单元测试任务"""
+    return Task(
+        description=f"""为已实现的代码编写单元测试：
+        
+        开发产出：{development_output}
+        
+        要求：
+        1. 测试覆盖率 >= 80%
+        2. 覆盖正常和异常场景
+        3. 使用 pytest 框架
+        4. 包含测试数据和预期结果
+        
+        输出：test_*.py 测试文件""",
+        agent=agent,
+        expected_output="完整的单元测试文件，覆盖核心功能"
+    )
+
+def create_review_task(agent, development_output):
+    """代码检视任务"""
+    return Task(
+        description=f"""检视已开发的代码：
+        
+        代码内容：{development_output}
+        
+        检视维度：
+        1. 代码质量（可读性、可维护性）
+        2. 安全性（注入、认证、授权）
+        3. 性能问题
+        4. 设计模式应用
+        
+        输出：问题清单和改进建议""",
+        agent=agent,
+        expected_output="代码检视报告，列出发现的问题和优先级"
+    )
+
+def create_e2e_test_task(agent, review_output):
+    """端到端测试任务"""
+    return Task(
+        description=f"""设计和执行端到端测试：
+        
+        代码检视图：{review_output}
+        
+        要求：
+        1. 设计完整的用户旅程测试
+        2. 测试正常流程和异常流程
+        3. 验证各模块集成正确性
+        
+        输出：E2E 测试场景和结果报告""",
+        agent=agent,
+        expected_output="E2E 测试报告，包含测试场景和通过/失败状态"
+    )
+
+def create_documentation_task(agent, all_outputs, project_name):
+    """文档编写任务"""
+    return Task(
+        description=f"""编写项目完整文档：
+        
+        项目名称：{project_name}
+        所有阶段产出：{all_outputs}
+        
+        文档要求：
+        1. README.md - 项目简介、快速开始
+        2. DESIGN.md - 系统设计文档
+        3. API.md - 接口文档（如适用）
+        4. CHANGELOG.md - 变更记录
+        
+        输出：完整的项目文档""",
+        agent=agent,
+        expected_output="完整的项目文档集：README、DESIGN、API等"
+    )
+
+
+# ============== SDD Workflow 主类 ==============
 
 class SDDWorkflow:
-    def __init__(self, project_name: str = PROJECT_NAME):
-        self.project_name = project_name
-        self.output_path = os.path.join(os.path.dirname(__file__), "output", project_name.lower())
-        self.phase_results = {}
+    """
+    SDD (Software Design Document) 工作流程
     
-    def run(self, initial_requirement: str):
+    基于 CrewAI 的多 Agent 协同框架，
+    自动化完成软件开发的全生命周期。
+    
+    使用示例:
+        workflow = SDDWorkflow(api_key="your-openai-key")
+        results = workflow.run("实现一个博客系统")
+    """
+    
+    def __init__(self, model: str = "gpt-4o", api_key: str = None):
+        """
+        初始化工作流程
+        
+        Args:
+            model: 使用的 LLM 模型，默认 gpt-4o
+            api_key: OpenAI API Key，默认从环境变量读取
+        """
+        self.model = model
+        self.llm = ChatOpenAI(model=model, api_key=api_key)
+        self.phase_results = {}
+        self.output_dir = None
+    
+    def run(self, requirement: str, output_dir: str = "./output") -> dict:
+        """
+        运行完整的 SDD 工作流程
+        
+        Args:
+            requirement: 用户需求描述
+            output_dir: 代码输出目录
+            
+        Returns:
+            dict: 各阶段执行结果
+        """
+        self.output_dir = output_dir
+        
         print(f"\n{'='*60}")
-        print(f"SDD Workflow 启动 - 项目: {self.project_name}")
+        print(f"🚀 SDD Workflow 启动")
+        print(f"{'='*60}")
+        print(f"📝 需求: {requirement}")
         print(f"{'='*60}\n")
         
-        phases = [
-            ("PHASE 1: 需求分析", self.requirement_analysis),
-            ("PHASE 2: 可行性研究", self.feasibility_study),
-            ("PHASE 3: 计划拆解", self.planning),
-            ("PHASE 4: 代码实现", self.implementation),
-            ("PHASE 5: 单元测试", self.unit_testing),
-            ("PHASE 6: 代码检视", self.code_review),
-            ("PHASE 7: 端到端测试", self.e2e_testing),
-            ("PHASE 8: 文档编写", self.documentation),
+        # 创建 Agents
+        print("[1/8] 初始化 Agent 团队...")
+        agents = {
+            'requirements': create_requirements_analyst(self.llm),
+            'feasibility': create_feasibility_expert(self.llm),
+            'planning': create_project_planner(self.llm),
+            'development': create_developer(self.llm),
+            'testing': create_qa_engineer(self.llm),
+            'review': create_code_reviewer(self.llm),
+            'e2e': create_e2e_tester(self.llm),
+            'documentation': create_technical_writer(self.llm),
+        }
+        print("[OK] Agent 团队就绪\n")
+        
+        # 创建 Crew（顺序执行）
+        print("[2/8] 配置工作流程...")
+        crew = Crew(
+            agents=list(agents.values()),
+            tasks=[],  # 动态添加 tasks
+            verbose=True,
+            process=Process.sequential  # 顺序执行，确保依赖关系
+        )
+        
+        # 定义任务
+        print("[3/8] 定义任务...")
+        tasks = [
+            Task(
+                description=f"分析需求并输出规格说明书：{requirement}",
+                agent=agents['requirements'],
+                expected_output="结构化需求规格说明书"
+            ),
+            Task(
+                description="评估项目可行性（技术/成本/时间）",
+                agent=agents['feasibility'],
+                expected_output="可行性报告，三维度评分"
+            ),
+            Task(
+                description="制定详细的项目计划和工作分解",
+                agent=agents['planning'],
+                expected_output="WBS 任务分解表"
+            ),
+            Task(
+                description="实现代码，输出到 {output_dir}",
+                agent=agents['development'],
+                expected_output="完整项目代码"
+            ),
+            Task(
+                description="编写单元测试",
+                agent=agents['testing'],
+                expected_output="测试文件和覆盖率报告"
+            ),
+            Task(
+                description="代码检视并提出改进建议",
+                agent=agents['review'],
+                expected_output="代码检视报告"
+            ),
+            Task(
+                description="执行端到端测试",
+                agent=agents['e2e'],
+                expected_output="E2E 测试报告"
+            ),
+            Task(
+                description="编写项目文档",
+                agent=agents['documentation'],
+                expected_output="README、设计文档等"
+            ),
         ]
         
-        for phase_name, phase_func in phases:
-            print(f"\n{'='*60}")
-            print(f"[{phase_name}]")
-            print(f"{'='*60}")
-            try:
-                result = phase_func(initial_requirement)
-                self.phase_results[phase_name] = result
-                print(f"[OK] {phase_name} 完成")
-            except Exception as e:
-                print(f"[FAIL] {phase_name} 失败: {e}")
-                self.phase_results[phase_name] = {"status": "failed", "error": str(e)}
+        crew.tasks = tasks
         
-        self._print_summary()
-        return self.phase_results
-    
-    def requirement_analysis(self, requirement: str):
-        print(f"分析需求: {requirement}")
+        # 执行工作流
+        print("[4/8] 开始执行 SDD 工作流...\n")
+        print(f"{'='*60}")
+        
+        result = crew.kickoff()
+        
+        print(f"{'='*60}")
+        print(f"\n✅ SDD Workflow 执行完成！")
+        print(f"{'='*60}")
+        
         return {
             "status": "completed",
-            "requirements": [
-                "R001: 蛇可以上下左右移动",
-                "R002: 吃食物后蛇身增长",
-                "R003: 碰撞墙壁或自身游戏结束",
-                "R004: 计分系统"
-            ]
+            "requirement": requirement,
+            "output_dir": output_dir,
+            "result": result
         }
     
-    def feasibility_study(self, requirement: str):
-        print("评估技术可行性...")
-        return {"status": "completed", "tech_score": 9, "complexity": "低"}
-    
-    def planning(self, requirement: str):
-        print("制定开发计划...")
-        return {"status": "completed", "tasks": ["T001-T006"]}
-    
-    def implementation(self, requirement: str):
-        print("生成代码...")
-        self._generate_snake_game()
-        return {"status": "completed"}
-    
-    def unit_testing(self, requirement: str):
-        print("编写和运行单元测试...")
-        self._generate_tests()
-        return {"status": "completed"}
-    
-    def code_review(self, requirement: str):
-        print("进行代码检视...")
-        return {"status": "completed"}
-    
-    def e2e_testing(self, requirement: str):
-        print("执行端到端测试...")
-        return {"status": "completed"}
-    
-    def documentation(self, requirement: str):
-        print("编写项目文档...")
-        self._generate_docs()
-        return {"status": "completed"}
-    
-    def _generate_snake_game(self):
-        os.makedirs(self.output_path, exist_ok=True)
+    def run_simple(self, requirement: str) -> str:
+        """
+        简化模式：仅运行需求分析和计划
         
-        main_code = '''"""贪吃蛇游戏 - 主入口"""
-import pygame
-import sys
-from game import SnakeGame
+        适合快速验证需求，不生成代码
+        
+        Returns:
+            str: 工作流执行结果
+        """
+        print(f"\n🚀 SDD Workflow (简化模式)")
+        print(f"📝 需求: {requirement}\n")
+        
+        # 仅创建前 3 个 Agent
+        agents = [
+            create_requirements_analyst(self.llm),
+            create_feasibility_expert(self.llm),
+            create_project_planner(self.llm),
+        ]
+        
+        crew = Crew(
+            agents=agents,
+            tasks=[
+                Task(
+                    description=f"分析需求：{requirement}",
+                    agent=agents[0],
+                    expected_output="需求规格说明书"
+                ),
+                Task(
+                    description="可行性研究",
+                    agent=agents[1],
+                    expected_output="可行性报告"
+                ),
+                Task(
+                    description="制定项目计划",
+                    agent=agents[2],
+                    expected_output="项目计划"
+                ),
+            ],
+            verbose=True,
+            process=Process.sequential
+        )
+        
+        return crew.kickoff()
 
-def main():
-    pygame.init()
-    game = SnakeGame()
-    game.run()
-    pygame.quit()
-    sys.exit()
+
+# ============== 命令行入口 ==============
 
 if __name__ == "__main__":
-    main()
-'''
-        
-        game_code = '''"""贪吃蛇游戏 - 核心逻辑"""
-import pygame
-import random
-import sys
-
-CELL_SIZE = 20
-GRID_WIDTH = 30
-GRID_HEIGHT = 20
-SCREEN_WIDTH = CELL_SIZE * GRID_WIDTH
-SCREEN_HEIGHT = CELL_SIZE * GRID_HEIGHT
-FPS = 10
-
-BLACK = (0, 0, 0)
-GREEN = (0, 255, 0)
-DARK_GREEN = (0, 200, 0)
-RED = (255, 0, 0)
-WHITE = (255, 255, 255)
-
-class SnakeGame:
-    def __init__(self):
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-        pygame.display.set_caption("贪吃蛇游戏 - 得分: 0")
-        self.clock = pygame.time.Clock()
-        self.font = pygame.font.Font(None, 36)
-        self.reset_game()
+    import sys
     
-    def reset_game(self):
-        self.snake = [(GRID_WIDTH // 2, GRID_HEIGHT // 2)]
-        self.direction = (1, 0)
-        self.food = self._generate_food()
-        self.score = 0
-        self.game_over = False
+    requirement = sys.argv[1] if len(sys.argv) > 1 else "实现一个待办事项管理应用"
     
-    def _generate_food(self):
-        while True:
-            pos = (random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1))
-            if pos not in self.snake:
-                return pos
+    workflow = SDDWorkflow()
+    results = workflow.run(requirement)
     
-    def run(self):
-        running = True
-        while running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-                elif event.type == pygame.KEYDOWN:
-                    self._handle_key(event.key)
-            if not self.game_over:
-                self._update()
-            self._draw()
-            self.clock.tick(FPS)
-        self._show_game_over()
-    
-    def _handle_key(self, key):
-        if key == pygame.K_UP and self.direction != (0, 1):
-            self.direction = (0, -1)
-        elif key == pygame.K_DOWN and self.direction != (0, -1):
-            self.direction = (0, 1)
-        elif key == pygame.K_LEFT and self.direction != (1, 0):
-            self.direction = (-1, 0)
-        elif key == pygame.K_RIGHT and self.direction != (-1, 0):
-            self.direction = (1, 0)
-        elif key == pygame.K_r and self.game_over:
-            self.reset_game()
-        elif key == pygame.K_ESCAPE:
-            pygame.quit()
-            sys.exit()
-    
-    def _update(self):
-        head_x, head_y = self.snake[0]
-        dir_x, dir_y = self.direction
-        new_head = (head_x + dir_x, head_y + dir_y)
-        
-        if (new_head[0] < 0 or new_head[0] >= GRID_WIDTH or
-            new_head[1] < 0 or new_head[1] >= GRID_HEIGHT or
-            new_head in self.snake):
-            self.game_over = True
-            return
-        
-        self.snake.insert(0, new_head)
-        
-        if new_head == self.food:
-            self.score += 10
-            pygame.display.set_caption(f"贪吃蛇游戏 - 得分: {self.score}")
-            self.food = self._generate_food()
-        else:
-            self.snake.pop()
-    
-    def _draw(self):
-        self.screen.fill(BLACK)
-        for x in range(0, SCREEN_WIDTH, CELL_SIZE):
-            pygame.draw.line(self.screen, (30, 30, 30), (x, 0), (x, SCREEN_HEIGHT))
-        for y in range(0, SCREEN_HEIGHT, CELL_SIZE):
-            pygame.draw.line(self.screen, (30, 30, 30), (0, y), (SCREEN_WIDTH, y))
-        
-        for i, (x, y) in enumerate(self.snake):
-            color = GREEN if i == 0 else DARK_GREEN
-            rect = pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE - 2, CELL_SIZE - 2)
-            pygame.draw.rect(self.screen, color, rect)
-        
-        food_rect = pygame.Rect(self.food[0] * CELL_SIZE, self.food[1] * CELL_SIZE, 
-                                  CELL_SIZE - 2, CELL_SIZE - 2)
-        pygame.draw.rect(self.screen, RED, food_rect)
-        
-        score_text = self.font.render(f"得分: {self.score}", True, WHITE)
-        self.screen.blit(score_text, (10, 10))
-        hint = self.font.render("方向键移动 | R键重来 | ESC退出", True, (150, 150, 150))
-        self.screen.blit(hint, (SCREEN_WIDTH - 400, SCREEN_HEIGHT - 40))
-        pygame.display.flip()
-    
-    def _show_game_over(self):
-        self.screen.fill(BLACK)
-        font_large = pygame.font.Font(None, 72)
-        font_small = pygame.font.Font(None, 36)
-        go_text = font_large.render("游戏结束!", True, RED)
-        score_text = font_small.render(f"最终得分: {self.score}", True, WHITE)
-        restart_text = font_small.render("按 R 键重新开始", True, GREEN)
-        self.screen.blit(go_text, (SCREEN_WIDTH // 2 - 130, SCREEN_HEIGHT // 2 - 60))
-        self.screen.blit(score_text, (SCREEN_WIDTH // 2 - 90, SCREEN_HEIGHT // 2))
-        self.screen.blit(restart_text, (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 + 50))
-        pygame.display.flip()
-        waiting = True
-        while waiting:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    waiting = False
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_r:
-                        self.reset_game()
-                        self.run()
-                        return
-                    elif event.key == pygame.K_ESCAPE:
-                        waiting = False
-
-if __name__ == "__main__":
-    pygame.init()
-    game = SnakeGame()
-    game.run()
-    pygame.quit()
-'''
-        
-        with open(os.path.join(self.output_path, "main.py"), "w") as f:
-            f.write(main_code)
-        with open(os.path.join(self.output_path, "game.py"), "w") as f:
-            f.write(game_code)
-        with open(os.path.join(self.output_path, "requirements.txt"), "w") as f:
-            f.write("pygame>=2.5.0\npytest>=8.0.0\n")
-        print(f"[OK] 代码已生成: {self.output_path}")
-    
-    def _generate_tests(self):
-        test_code = '''"""单元测试"""
-import pytest
-from game import CELL_SIZE, GRID_WIDTH, GRID_HEIGHT, FPS
-
-class TestSnakeGame:
-    def test_constants(self):
-        assert CELL_SIZE == 20
-        assert GRID_WIDTH == 30
-        assert GRID_HEIGHT == 20
-        assert FPS == 10
-    
-    def test_grid_center(self):
-        assert GRID_WIDTH // 2 == 15
-        assert GRID_HEIGHT // 2 == 10
-    
-    def test_direction_vectors(self):
-        UP = (0, -1)
-        DOWN = (0, 1)
-        LEFT = (-1, 0)
-        RIGHT = (1, 0)
-        assert UP != DOWN
-        assert LEFT != RIGHT
-    
-    def test_collision_bounds(self):
-        assert GRID_WIDTH > 0
-        assert GRID_HEIGHT > 0
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
-'''
-        
-        with open(os.path.join(self.output_path, "test_game.py"), "w") as f:
-            f.write(test_code)
-    
-    def _generate_docs(self):
-        readme = f'''# {self.project_name}
-
-基于 CrewAI 多 Agent SDD 工作流开发的贪吃蛇游戏。
-
-## 运行方式
-
-```bash
-cd output/{self.project_name.lower()}
-pip install -r requirements.txt
-python main.py
-```
-
-## 操作说明
-
-| 按键 | 功能 |
-|------|------|
-| 方向键 | 移动蛇 |
-| R | 重新开始 |
-| ESC | 退出游戏 |
-'''
-        
-        design = f'''# {self.project_name} - 设计文档
-
-## 系统架构
-
-- SnakeGame 类：游戏主控制器
-- reset_game()：重置游戏状态
-- run()：主游戏循环
-- _update()：更新游戏逻辑
-- _draw()：渲染画面
-
-## 配置参数
-
-| 参数 | 值 |
-|------|-----|
-| CELL_SIZE | 20 |
-| GRID_WIDTH | 30 |
-| GRID_HEIGHT | 20 |
-| FPS | 10 |
-'''
-        
-        with open(os.path.join(self.output_path, "README.md"), "w") as f:
-            f.write(readme)
-        with open(os.path.join(self.output_path, "DESIGN.md"), "w") as f:
-            f.write(design)
-        print(f"[OK] 文档已生成")
-    
-    def _print_summary(self):
-        print(f"\n{'='*60}")
-        print(f"SDD Workflow 执行总结")
-        print(f"{'='*60}")
-        success = sum(1 for r in self.phase_results.values() if r.get("status") == "completed")
-        print(f"完成度: {success}/{len(self.phase_results)} 阶段")
-        for phase, result in self.phase_results.items():
-            status = "[OK]" if result.get("status") == "completed" else "[FAIL]"
-            print(f"  {status} {phase}")
-        print(f"\n输出目录: {self.output_path}")
-        print(f"{'='*60}\n")
-
-
-if __name__ == "__main__":
-    workflow = SDDWorkflow("SnakeGame")
-    results = workflow.run("实现一个贪吃蛇小游戏")
+    print("\n📊 执行结果:")
+    print(results)
