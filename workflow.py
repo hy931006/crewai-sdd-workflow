@@ -152,13 +152,3 @@ class SDDWorkflow:
         return crew.kickoff()
 
 
-if __name__ == "__main__":
-    import sys
-
-    requirement = sys.argv[1] if len(sys.argv) > 1 else "实现一个待办事项管理应用"
-
-    workflow = SDDWorkflow()
-    results = workflow.run(requirement)
-
-    print("\n执行结果:")
-    print(results)
