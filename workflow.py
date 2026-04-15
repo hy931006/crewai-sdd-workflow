@@ -10,7 +10,7 @@ SDD Workflow - 多 Agent 协同软件开发生命周期
 """
 from crewai import Crew, Process, LLM
 
-from config import LLM_MODEL, LLM_BASE_URL, DEEPSEEK_API_KEY, VERBOSE, OUTPUT_DIR
+from config import LLM_MODEL, LLM_BASE_URL, LLM_API_KEY, VERBOSE, OUTPUT_DIR
 from agents import (
     RequirementsAnalyst, FeasibilityExpert, ProjectPlanner,
     SeniorDeveloper, QAEngineer, CodeReviewer, E2ETester, TechnicalWriter
@@ -45,7 +45,7 @@ class SDDWorkflow:
         """
         self.model = model or LLM_MODEL
         self.base_url = base_url or LLM_BASE_URL
-        self.api_key = api_key or DEEPSEEK_API_KEY
+        self.api_key = api_key or LLM_API_KEY
         self.llm = LLM(
             model=self.model,
             base_url=self.base_url,
@@ -53,17 +53,19 @@ class SDDWorkflow:
         )
         self.output_dir = None
 
-    def run(self, requirement: str, output_dir: str = None) -> dict:
+    def run(self, requirement: str, output_dir: str = None, verbose: bool = None) -> dict:
         """
         运行完整的 SDD 工作流程
 
         Args:
             requirement: 用户需求描述
             output_dir: 代码输出目录，默认使用 config 配置
+            verbose: 是否显示详细输出，默认使用 config.VERBOSE
 
         Returns:
             dict: 各阶段执行结果
         """
+        effective_verbose = verbose if verbose is not None else VERBOSE
         self.output_dir = output_dir or OUTPUT_DIR
 
         print(f"\n{'='*60}")
@@ -91,7 +93,7 @@ class SDDWorkflow:
         crew = Crew(
             agents=list(agents.values()),
             tasks=[],
-            verbose=VERBOSE,
+            verbose=effective_verbose,
             process=Process.sequential
         )
 
@@ -127,15 +129,19 @@ class SDDWorkflow:
             "result": result
         }
 
-    def run_simple(self, requirement: str) -> str:
+    def run_simple(self, requirement: str, verbose: bool = None) -> str:
         """
         简化模式：仅运行需求分析 + 可行性 + 计划
 
         适合快速验证需求，不生成代码
 
+        Args:
+            verbose: 是否显示详细输出，默认使用 config.VERBOSE
+
         Returns:
             str: 工作流执行结果
         """
+        effective_verbose = verbose if verbose is not None else VERBOSE
         print(f"\nSDD Workflow (简化模式)")
         print(f"需求：{requirement}\n")
 
@@ -152,7 +158,7 @@ class SDDWorkflow:
                 create_feasibility_task(agents[1], "{requirements_output}"),
                 create_planning_task(agents[2], "{feasibility_output}"),
             ],
-            verbose=VERBOSE,
+            verbose=effective_verbose,
             process=Process.sequential
         )
 

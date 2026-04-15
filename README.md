@@ -27,8 +27,10 @@
 ```bash
 pip install -r requirements.txt
 
-# 设置 API Key
-export OPENAI_API_KEY="your-api-key"
+# 设置 API Key（支持多种 provider）
+export LLM_API_KEY="your-api-key"
+# 可选：export LLM_BASE_URL="https://your-api-endpoint"
+export LLM_MODEL="deepseek-chat"  # 可选，默认 deepseek-chat
 ```
 
 ## 快速开始
@@ -120,8 +122,9 @@ def create_custom_agent():
 在 `.env` 文件中配置：
 
 ```bash
-OPENAI_API_KEY=your-api-key
-LLM_MODEL=gpt-4o  # 可选，默认 gpt-4o
+LLM_API_KEY=your-api-key
+LLM_MODEL=gpt-4o  # 可选，默认 deepseek-chat
+LLM_BASE_URL=https://api.openai.com  # 可选，默认 https://api.deepseek.com
 ```
 
 ## License

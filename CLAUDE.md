@@ -11,14 +11,29 @@ CrewAI SDD Workflow - A multi-agent collaborative software development lifecycle
 ### Core Components
 
 ```
+main.py              # CLI entry point with argparse
 workflow.py          # Main workflow orchestration - defines 8 agents and their task sequence
-config.py            # Centralized configuration for LLM settings and project paths
+config.py            # Centralized LLM config (LLM_API_KEY, LLM_MODEL, LLM_BASE_URL) and paths
 agents/              # Modular agent definitions (one file per agent type)
-  ├── developer.py   # Code implementation agent
-  ├── planner.py     # Project planning and task breakdown
-  ├── reviewer.py    # Code review and quality assurance
-  ├── tester.py      # Unit and integration testing
-  └── writer.py      # Technical documentation
+  ├── __init__.py
+  ├── requirements.py
+  ├── feasibility.py
+  ├── planner.py
+  ├── developer.py
+  ├── qa.py
+  ├── reviewer.py
+  ├── e2e_tester.py
+  └── writer.py
+tasks/               # Task factory functions (one file per stage)
+  ├── __init__.py
+  ├── requirement.py
+  ├── feasibility.py
+  ├── planning.py
+  ├── development.py
+  ├── testing.py
+  ├── review.py
+  ├── e2e.py
+  └── documentation.py
 output/              # Generated projects from workflow execution
 ```
 
@@ -52,25 +67,31 @@ pip install -r requirements.txt
 
 ### Environment
 ```bash
-export OPENAI_API_KEY="your-api-key"
-# Optional: export LLM_MODEL="gpt-4o"  # Default
+export LLM_API_KEY="your-api-key"
+# Optional provider overrides:
+# export LLM_BASE_URL="https://api.openai.com"
+# export LLM_MODEL="gpt-4o"  # Default: deepseek-chat
 ```
 
 ### Run Full Workflow
 ```bash
-# Command line
-python workflow.py "实现一个博客系统"
-
-# Python API
-from workflow import SDDWorkflow
-workflow = SDDWorkflow()
-results = workflow.run("实现一个博客系统")
+# CLI (recommended)
+python main.py "实现一个博客系统"
+python main.py "实现一个博客系统" --model gpt-4o --base-url https://api.openai.com
+python main.py "实现一个博客系统" --simple  # 仅需求分析+可行性+计划
+python main.py "实现一个博客系统" --output ./my-project
+python main.py --help
+python main.py --version
 ```
 
-### Run Simplified Mode (Requirements + Planning only)
+### Python API
 ```python
 from workflow import SDDWorkflow
+
 workflow = SDDWorkflow()
+results = workflow.run("实现一个博客系统")
+
+# Simplified mode
 result = workflow.run_simple("实现一个待办事项应用")
 ```
 
@@ -79,26 +100,22 @@ result = workflow.run_simple("实现一个待办事项应用")
 pytest                                    # Run all tests
 pytest -v                                 # Verbose output
 pytest --cov=. --cov-report=html          # With coverage report
-pytest output/snakegame/test_game.py      # Run single test file
-```
-
-### Run Generated Projects
-```bash
-cd output/snakegame
-python main.py                            # Run Snake game example
 ```
 
 ## Key Configuration
 
-- **LLM_MODEL**: Model selection (default: gpt-4o)
-- **MAX_ITERATIONS**: Maximum workflow iterations (default: 10)
-- **VERBOSE**: Enable detailed logging (default: True)
-- **PROJECT_NAME**: Name for generated projects
-- **PROJECT_PATH**: Output directory for generated code
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LLM_API_KEY` | (空) | API Key，兼容 OpenAI/DeepSeek/其他 |
+| `LLM_MODEL` | `deepseek-chat` | 模型名称 |
+| `LLM_BASE_URL` | `https://api.deepseek.com` | API 端点 |
+| `VERBOSE` | `True` | 详细日志 |
 
 ## Development Notes
 
-- All agents are created via factory functions in `workflow.py` with shared LLM instance
-- Agents module (`agents/`) provides reusable, class-based agent definitions
-- Workflow supports both full SDD cycle and simplified (requirements-only) mode
-- Generated projects are output to `output/{project_name}/` directory
+- `config.py` 中 `LLM_API_KEY` 按优先级回退读取：`LLM_API_KEY` → `OPENAI_API_KEY` → `DEEPSEEK_API_KEY`
+- 所有 Agent 通过 `agents/__init__.py` 集中导出
+- 所有 Task 通过 `tasks/__init__.py` 集中导出
+- `main.py` 为唯一 CLI 入口，`workflow.py` 仅保留 Python API
+- `workflow.py` 的 `run()` 和 `run_simple()` 接受 `verbose` 参数覆盖 config 默认值
+- 生成项目输出到 `output/{project_name}/`
